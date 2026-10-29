@@ -75,6 +75,16 @@ fi
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 jsign_bin="${JSIGN_BIN:-$script_dir/bin/jsign}"
 [[ -x "$jsign_bin" ]] || { echo "error: jsign is not executable: $jsign_bin" >&2; exit 1; }
+credentials_resolver="${AWS_CREDENTIALS_RESOLVER:-$script_dir/tools/resolve-aws-credentials.py}"
+[[ -x "$credentials_resolver" ]] || { echo "error: credentials resolver not found or not executable: $credentials_resolver" >&2; exit 1; }
+
+# jsign's AWS keystore only reads credentials from AWS_* env vars, the ECS
+# endpoint, or EC2 IMDSv2 -- not from ~/.aws/credentials profiles or SSO.
+# Resolve via the standard AWS credential chain here and hand jsign the
+# result through an env var (via --storepass env:NAME) so it never appears
+# in argv or process listings.
+JSIGN_AWS_STOREPASS="$("$credentials_resolver")" || exit 1
+export JSIGN_AWS_STOREPASS
 
 input_dir="$(cd -- "$(dirname -- "$input")" && pwd)"
 input_name="$(basename -- "$input")"
@@ -86,6 +96,7 @@ cp --preserve=mode,timestamps "$input" "$output"
 "$jsign_bin" \
   --storetype AWS \
   --keystore "$region" \
+  --storepass env:JSIGN_AWS_STOREPASS \
   --alias "$alias_name" \
   --certfile "$certfile" \
   --tsaurl "$tsaurl" \

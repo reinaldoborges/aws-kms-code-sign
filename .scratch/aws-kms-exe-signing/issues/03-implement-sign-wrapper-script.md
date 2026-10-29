@@ -32,3 +32,30 @@ The original is never overwritten and jsign/AWS failures are not masked.
 The local boundary test confirms the complete argument forwarding and output
 path. A real KMS invocation was not run because no matching certificate bundle
 is present on this machine; ticket 04 remains the end-to-end validation point.
+
+## Comments
+
+A real-world run surfaced an error jsign's AWS keystore raises when
+credentials come from a shared `~/.aws/credentials` profile rather than env
+vars or an EC2/ECS instance role:
+
+```
+jsign: storepass option must specify the AWS credentials: <accessKey>|<secretKey>[|<sessionToken>], when not running from ECS or an EC2 instance
+```
+
+jsign's `AWS` storetype only reads `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/
+`AWS_SESSION_TOKEN` env vars, the ECS container credentials endpoint, or EC2
+IMDSv2 — it does not read `~/.aws/credentials` profiles, SSO, or assumed-role
+chains. This is narrower than the originally recorded "standard AWS SDK/CLI
+credential chain, no custom credential handling" decision.
+
+Fix: added `tools/resolve-aws-credentials.py`, which resolves credentials via
+`botocore`'s standard credential chain (the same one the AWS CLI/SDK use —
+env vars, profiles, SSO, assumed roles, instance roles) and prints them in
+jsign's `accessKey|secretKey[|sessionToken]` format. `sign.sh` now calls this
+resolver and passes the result to jsign via `--storepass env:JSIGN_AWS_STOREPASS`,
+so credentials never appear in argv/process listings. This preserves the
+user-facing goal (no manual credential wrangling) while working around
+jsign's narrower built-in credential support. Covered by
+`test/resolve-aws-credentials.test.sh` and an updated
+`test/sign-wrapper.test.sh`.

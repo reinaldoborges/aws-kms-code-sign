@@ -15,7 +15,17 @@ test -f "${@: -1}"
 EOF
 chmod +x "$workdir/fake-jsign"
 
-FAKE_JSIGN_LOG="$workdir/fake-jsign.log" JSIGN_BIN="$workdir/fake-jsign" "$repo_root/sign.sh" \
+cat > "$workdir/fake-credentials-resolver" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "FAKEACCESSKEY|FAKESECRETKEY|FAKESESSIONTOKEN"
+EOF
+chmod +x "$workdir/fake-credentials-resolver"
+
+FAKE_JSIGN_LOG="$workdir/fake-jsign.log" \
+JSIGN_BIN="$workdir/fake-jsign" \
+AWS_CREDENTIALS_RESOLVER="$workdir/fake-credentials-resolver" \
+  "$repo_root/sign.sh" \
   --alias alias/test-key \
   --region sa-east-1 \
   --certfile "$workdir/cert.p7b" \
@@ -28,3 +38,10 @@ grep -q -- "--storetype AWS" "$workdir/fake-jsign.log"
 grep -q -- "--keystore sa-east-1" "$workdir/fake-jsign.log"
 grep -q -- "--alias alias/test-key" "$workdir/fake-jsign.log"
 grep -q -- "--tsaurl http://tsa.example.test" "$workdir/fake-jsign.log"
+grep -qE -- "--storepass env:[A-Za-z_][A-Za-z0-9_]*" "$workdir/fake-jsign.log"
+
+storepass_var="$(grep -oE -- '--storepass env:[A-Za-z_][A-Za-z0-9_]*' "$workdir/fake-jsign.log" | cut -d: -f2)"
+[[ "$(printenv "$storepass_var" 2>/dev/null || true)" == "" ]] || {
+  echo "error: credential env var leaked to parent shell" >&2
+  exit 1
+}

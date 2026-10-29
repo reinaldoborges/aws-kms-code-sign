@@ -9,11 +9,28 @@ It does not automate CI/CD and does not replace Windows `signtool` verification.
 - Java 21 or newer.
 - `bin/jsign` (the repository includes jsign 7.6 and its launcher).
 - OpenSSL 3 or newer for assembling certificate bundles.
-- AWS credentials available through the standard AWS SDK credential chain.
+- Python 3 with `botocore` installed, used by `sign.sh` to resolve AWS
+  credentials (see "AWS credentials" below).
+- AWS credentials available through the standard AWS SDK/CLI credential
+  chain (environment variables, shared profiles, SSO, assumed roles, or an
+  EC2/ECS instance role).
 - The identity needs `kms:Sign`, `kms:DescribeKey`, and `kms:GetPublicKey` for
   the target KMS key.
 - A PKCS#7 (`.p7b`) bundle containing the leaf code-signing certificate and
   intermediate CA certificates.
+
+### AWS credentials
+
+jsign's `AWS` keystore type only reads credentials from the
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN` environment
+variables, the ECS container credentials endpoint, or EC2 IMDSv2 — it does
+**not** read `~/.aws/credentials` profiles, SSO sessions, or assumed-role
+chains directly. `sign.sh` bridges this gap automatically: it resolves
+credentials using `botocore`'s standard credential chain (the same one the
+AWS CLI/SDK use) and passes the result to jsign via `--storepass env:...`, so
+no secret ever appears on the command line. You don't need to export
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` yourself unless that's how your
+environment is already configured.
 
 ## Assemble a certificate bundle
 
