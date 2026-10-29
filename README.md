@@ -32,6 +32,13 @@ no secret ever appears on the command line. You don't need to export
 `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` yourself unless that's how your
 environment is already configured.
 
+### AWS region
+
+`--region` can be omitted if it's resolvable from the standard AWS
+credential chain: the `AWS_REGION` or `AWS_DEFAULT_REGION` environment
+variables, or a profile's configured region in `~/.aws/config`. `sign.sh`
+resolves it the same way and fails with a clear error if none is found.
+
 ## Assemble a certificate bundle
 
 Pass certificates in leaf-to-root order:
@@ -48,7 +55,6 @@ PKCS#7 bundle instead of the default PEM-encoded bundle.
 ```sh
 ./sign.sh \
   --alias alias/codesign2026 \
-  --region sa-east-1 \
   --certfile code-signing.p7b \
   path/to/application.exe
 ```
@@ -58,9 +64,10 @@ The source file is never overwritten. The signed copy is written to
 `http://timestamp.globalsign.com/tsa/r45standard` by default; override it with
 `--tsaurl URL`.
 
-The `--alias` value may be an AWS KMS alias or ARN. `--region` is always
-explicit because jsign's AWS keystore uses it as the `--keystore` value.
-Errors from jsign and the AWS SDK are returned unchanged.
+The `--alias` value may be an AWS KMS alias or ARN. `--region` is optional
+(see "AWS region" above) and, when given, is passed straight through as
+jsign's AWS keystore `--keystore` value. Errors from jsign and the AWS SDK
+are returned unchanged.
 
 ## Test fixture
 

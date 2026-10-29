@@ -59,3 +59,13 @@ user-facing goal (no manual credential wrangling) while working around
 jsign's narrower built-in credential support. Covered by
 `test/resolve-aws-credentials.test.sh` and an updated
 `test/sign-wrapper.test.sh`.
+
+`--region` was then made optional on the same reasoning: jsign's `AWS`
+keystore takes the region as a plain `--keystore` value with no resolution
+of its own, so requiring it as a mandatory flag duplicated information
+already available via `AWS_REGION`/`AWS_DEFAULT_REGION` or a profile's
+configured region. Added `tools/resolve-aws-region.py` (checks `AWS_REGION`
+and `AWS_DEFAULT_REGION` explicitly, then falls back to botocore's config
+chain for profile-configured regions) and `sign.sh` now calls it only when
+`--region` is omitted. Covered by `test/resolve-aws-region.test.sh` and a
+new case in `test/sign-wrapper.test.sh`.

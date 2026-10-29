@@ -5,10 +5,13 @@ default_tsa="http://timestamp.globalsign.com/tsa/r45standard"
 
 usage() {
   cat <<'EOF'
-Usage: sign.sh --alias ALIAS --region REGION --certfile BUNDLE [--tsaurl URL] INPUT.exe
+Usage: sign.sh --alias ALIAS [--region REGION] --certfile BUNDLE [--tsaurl URL] INPUT.exe
 
 Copy INPUT.exe into a sibling signed/ directory and sign the copy with jsign
 using AWS KMS and the supplied PKCS#7 certificate chain.
+
+--region may be omitted if it's resolvable from the standard AWS credential
+chain (AWS_REGION, AWS_DEFAULT_REGION, or a profile's configured region).
 EOF
 }
 
@@ -63,8 +66,8 @@ while (($#)); do
   esac
 done
 
-if [[ -z "$alias_name" || -z "$region" || -z "$certfile" || -z "$input" ]]; then
-  echo "error: --alias, --region, --certfile, and INPUT.exe are required" >&2
+if [[ -z "$alias_name" || -z "$certfile" || -z "$input" ]]; then
+  echo "error: --alias, --certfile, and INPUT.exe are required" >&2
   usage >&2
   exit 2
 fi
@@ -77,6 +80,16 @@ jsign_bin="${JSIGN_BIN:-$script_dir/bin/jsign}"
 [[ -x "$jsign_bin" ]] || { echo "error: jsign is not executable: $jsign_bin" >&2; exit 1; }
 credentials_resolver="${AWS_CREDENTIALS_RESOLVER:-$script_dir/tools/resolve-aws-credentials.py}"
 [[ -x "$credentials_resolver" ]] || { echo "error: credentials resolver not found or not executable: $credentials_resolver" >&2; exit 1; }
+region_resolver="${AWS_REGION_RESOLVER:-$script_dir/tools/resolve-aws-region.py}"
+[[ -x "$region_resolver" ]] || { echo "error: region resolver not found or not executable: $region_resolver" >&2; exit 1; }
+
+if [[ -z "$region" ]]; then
+  # jsign's AWS keystore takes the region as a plain --keystore value with
+  # no resolution of its own. Resolve it the same way the standard AWS
+  # credential chain would, so --region can be omitted when already
+  # configured via env vars or a profile.
+  region="$("$region_resolver")" || exit 1
+fi
 
 # jsign's AWS keystore only reads credentials from AWS_* env vars, the ECS
 # endpoint, or EC2 IMDSv2 -- not from ~/.aws/credentials profiles or SSO.

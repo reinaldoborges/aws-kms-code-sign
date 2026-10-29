@@ -45,3 +45,24 @@ storepass_var="$(grep -oE -- '--storepass env:[A-Za-z_][A-Za-z0-9_]*' "$workdir/
   echo "error: credential env var leaked to parent shell" >&2
   exit 1
 }
+
+# When --region is omitted, sign.sh must resolve it via the standard AWS
+# credential chain instead of requiring it as a mandatory flag.
+cat > "$workdir/fake-region-resolver" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "eu-west-1"
+EOF
+chmod +x "$workdir/fake-region-resolver"
+
+FAKE_JSIGN_LOG="$workdir/fake-jsign-noregion.log" \
+JSIGN_BIN="$workdir/fake-jsign" \
+AWS_CREDENTIALS_RESOLVER="$workdir/fake-credentials-resolver" \
+AWS_REGION_RESOLVER="$workdir/fake-region-resolver" \
+  "$repo_root/sign.sh" \
+  --alias alias/test-key \
+  --certfile "$workdir/cert.p7b" \
+  --tsaurl http://tsa.example.test \
+  "$workdir/input.exe"
+
+grep -q -- "--keystore eu-west-1" "$workdir/fake-jsign-noregion.log"
