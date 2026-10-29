@@ -1,0 +1,29 @@
+# Map: AWS KMS Windows .exe signing on Linux
+
+## Destination
+
+A working Linux CLI tool, living in this repo, that signs Windows `.exe` files using an AWS KMS-held RSA signing key (key alias/ARN passed as a parameter) and a local PKCS#7 (`.p7b`) certificate + intermediate CA chain bundle (path passed as a parameter). Built on **jsign**. Always applies an RFC3161 timestamp, defaulting to GlobalSign's public TSA, overridable by parameter. Relies on the standard AWS SDK/CLI credential chain (no custom credential handling). Outputs signed files into a `signed/` directory, leaving originals untouched. Manual execution only (no CI/CD automation). Verified Linux-side only (no Windows `signtool` check).
+
+## Notes
+
+- **Override of "Plan, don't do"**: this effort carries execution into the map itself. Its tickets are `wayfinder:task` tickets that build the tool, not open decisions — the deciding was done in the grilling session that produced this map.
+- **Tool decided**: jsign (JVM-based, native `--storetype AWS` support). osslsigncode + aws-kms-pkcs11 was considered and ruled out: it would require a manual build from source (Ubuntu's apt package is 2.2, upstream is 2.14+) plus compiling a separate PKCS#11 shim, versus jsign's single-jar install on an already-present JVM (OpenJDK 21 confirmed installed).
+- jsign's `--certfile` accepts a `.p7b` directly, PEM or DER encoded — no conversion to a plain PEM chain is required. (Source: https://ebourg.github.io/jsign/)
+- Candidate KMS keys already in account 741780802448 (region `sa-east-1`), all `SIGN_VERIFY`/RSA: `alias/codesign2026` (RSA_4096), `alias/codesign2022` (RSA_4096), `alias/identity-del-peru-sign-2026` (RSA_4096), `alias/teste1` (RSA_2048, test-only). The key alias and `.p7b` path are always runtime parameters — no default is hardcoded.
+- GlobalSign's RFC3161 TSA URL: `http://timestamp.globalsign.com/tsa/r45standard` (source: GlobalSign support KB). jsign has no named CA aliases; the full URL is always passed via `--tsaurl`/`-t`.
+- IAM: current identity's `kms:GetPublicKey` against `alias/codesign2026` succeeds (via the key's resource policy granting account root); `kms:Sign` was deliberately not pre-tested to avoid a real signing side-effect. No dedicated verification ticket — let any real `kms:Sign` permission error surface naturally from jsign/AWS SDK output.
+- Consult `docs/agents/domain.md` before any terminology work (single-context repo: root `GLOSSARY.md` / `docs/adr/`, created lazily, none yet).
+
+## Decisions so far
+
+_(none yet — no tickets resolved)_
+
+## Not yet specified
+
+_(none — the destination is fully specified; remaining work is execution, tracked below)_
+
+## Out of scope
+
+- Signing `.dll`, `.msi`, or other Authenticode-signable formats beyond `.exe` — ruled out for this effort; could be a future effort if needed.
+- CI/CD automation (GitHub Actions, etc.) — ruled out; this effort covers manual execution only.
+- Windows-side signature verification (`signtool verify /pa`) — ruled out; Linux-side verification (jsign/osslsigncode tooling) is sufficient for this effort.
