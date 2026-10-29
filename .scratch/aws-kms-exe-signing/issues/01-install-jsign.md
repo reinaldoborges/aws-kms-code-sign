@@ -1,4 +1,5 @@
 Type: task
+Status: resolved
 Blocked by: none
 
 ## Question
@@ -11,3 +12,14 @@ Facts already gathered:
 - Ubuntu's `apt` does not carry a jsign package (only checked for `osslsigncode`); installation will need the upstream jar/deb release directly.
 
 Resolve by: picking an install method (standalone jar vs. `.deb` package), installing it, and confirming `jsign --version` (or equivalent jar invocation) runs successfully. Record the chosen method, the installed version, and the exact invocation command (e.g. `jsign ...` vs `java -jar jsign-x.y.z.jar ...`) in the resolution.
+
+## Answer
+
+Installed the standalone upstream jar `tools/jsign-7.6.jar` and added the
+executable launcher `bin/jsign`. The verified invocation is:
+
+```sh
+./bin/jsign --version
+```
+
+It reports `Jsign 7.6`.

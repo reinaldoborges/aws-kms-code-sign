@@ -1,4 +1,5 @@
 Type: task
+Status: resolved
 Blocked by: none
 
 ## Question
@@ -11,3 +12,17 @@ Facts already gathered:
 - jsign (and `osslsigncode`) accept the resulting `.p7b` in either PEM or DER form, so the script should decide and document which encoding it outputs (PEM is more debuggable/diffable; DER is more universally recognized as ".p7b").
 
 Resolve by: deciding the script's CLI interface (e.g. a list of cert file paths as positional args, or a directory of certs, plus an output path and an optional `--der`/`--pem` flag), implementing it, and verifying its output is a valid PKCS#7 bundle (e.g. via `openssl pkcs7 -print_certs -in bundle.p7b` listing all input certs in order). Record the final CLI interface and the exact `openssl` invocation(s) used in the resolution.
+
+## Answer
+
+Implemented `assemble-p7b.sh`:
+
+```sh
+./assemble-p7b.sh --output bundle.p7b [--der] leaf.pem intermediate.pem ...
+```
+
+It accepts PEM or DER X.509 files in leaf-to-root order, normalizes them with
+`openssl x509`, and assembles a certs-only bundle with
+`openssl crl2pkcs7 -nocrl -certfile ... -out ...`. The default output is PEM;
+`--der` selects DER. The assembler test verifies the resulting certificate
+order with `openssl pkcs7 -print_certs`.
