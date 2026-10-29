@@ -2,7 +2,7 @@
 
 ## Destination
 
-A working Linux CLI tool, living in this repo, that signs Windows `.exe` files using an AWS KMS-held RSA signing key (key alias/ARN passed as a parameter) and a local PKCS#7 (`.p7b`) certificate + intermediate CA chain bundle (path passed as a parameter). Built on **jsign**. Always applies an RFC3161 timestamp, defaulting to GlobalSign's public TSA, overridable by parameter. Relies on the standard AWS SDK/CLI credential chain (no custom credential handling). Outputs signed files into a `signed/` directory, leaving originals untouched. Manual execution only (no CI/CD automation). Verified Linux-side only (no Windows `signtool` check).
+A working Linux CLI tool, living in this repo, that signs Windows `.exe` files using an AWS KMS-held RSA signing key (key alias/ARN passed as a parameter) and a local PKCS#7 (`.p7b`) certificate + intermediate CA chain bundle (path passed as a parameter). Built on **jsign**. Always applies an RFC3161 timestamp, defaulting to GlobalSign's public TSA, overridable by parameter. Relies on the standard AWS SDK/CLI credential chain (no custom credential handling). Outputs signed files into a `signed/` directory, leaving originals untouched. Manual execution only (no CI/CD automation). Verified Linux-side only (no Windows `signtool` check). Also includes a companion script that assembles the `.p7b` bundle itself from a list of individual local X.509 certificate files (leaf + intermediate CAs), for users whose cert and CA chain aren't already bundled.
 
 ## Notes
 
@@ -12,6 +12,7 @@ A working Linux CLI tool, living in this repo, that signs Windows `.exe` files u
 - Candidate KMS keys already in account 741780802448 (region `sa-east-1`), all `SIGN_VERIFY`/RSA: `alias/codesign2026` (RSA_4096), `alias/codesign2022` (RSA_4096), `alias/identity-del-peru-sign-2026` (RSA_4096), `alias/teste1` (RSA_2048, test-only). The key alias and `.p7b` path are always runtime parameters — no default is hardcoded.
 - GlobalSign's RFC3161 TSA URL: `http://timestamp.globalsign.com/tsa/r45standard` (source: GlobalSign support KB). jsign has no named CA aliases; the full URL is always passed via `--tsaurl`/`-t`.
 - IAM: current identity's `kms:GetPublicKey` against `alias/codesign2026` succeeds (via the key's resource policy granting account root); `kms:Sign` was deliberately not pre-tested to avoid a real signing side-effect. No dedicated verification ticket — let any real `kms:Sign` permission error surface naturally from jsign/AWS SDK output.
+- No real cert/CA files were found on this dev machine (only unrelated stdlib test fixtures) — the end-to-end sign+verify ticket (04) can use the new assemble-p7b script (ticket 06) to build its test bundle once real or test X.509 cert files are available, rather than assuming a pre-built `.p7b` exists.
 - Consult `docs/agents/domain.md` before any terminology work (single-context repo: root `GLOSSARY.md` / `docs/adr/`, created lazily, none yet).
 
 ## Decisions so far
